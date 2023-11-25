@@ -14,7 +14,7 @@ type IpfsServiceType = typeof IpfsService
 import { IaddPerkRequest } from '../../interfaces/IaddPerkRequest'
 
 import LSP6Schema from '@erc725/erc725.js/schemas/LSP6KeyManager.json'
-import PerkSchema from '../../contracts/DuckyAsset/_Schemas/PerkSchema/PerkSchema.json'
+import PerkSchema from '../../contracts/DuckyAsset/_Schemas/LSP2PerkSchema/LSP2PerkSchema.json'
 import { EncodeDataInput } from '@erc725/erc725.js/build/main/src/types/decodeData'
 import { EncodeDataReturn } from '@erc725/erc725.js/build/main/src/types'
 import { callParams } from '../../types/callParams'
@@ -52,42 +52,11 @@ class PerkService {
         provider,
       )
       // get the owner, if it fails then the asset does not exist
-      const owner = await erc725.getOwner().catch(error => {
+      await erc725.getOwner().catch(error => {
         throw new Error('Error getting owner of asset: ' + error.message)
       })
 
-      console.log('Asset owner:', owner)
-
       const { metadata, perkKeys, perkProperties } = data
-
-      console.log('perkProperties:', perkProperties)
-
-      // Serialize perkKeys and perkProperties
-      const serializedPerkKeys = perkKeys.map((perkKey: string) => {
-        // build it in to a new array
-        console.log('key:', perkKey)
-        const newPerkKey = `[${perkKey}]`
-        console.log('newPerkKey:', newPerkKey)
-
-        // return the new array as a string
-        return newPerkKey
-      })
-
-      // Turn the list of serialized perk properties in to a list of strings
-      const serializedPerkProperties = perkProperties.map(
-        (perkProperty: string[]) => {
-          // build it in to a new array
-          console.log('key:', perkProperty)
-          const newPerkProperty = `[${perkProperty}]`
-          console.log('newPerkProperty:', newPerkProperty)
-
-          // return the new array as a string
-          return newPerkProperty
-        },
-      )
-
-      console.log('Serialized perkKeys:', serializedPerkKeys)
-      console.log('Serializeds perkProperties:', serializedPerkProperties)
 
       if (relayThroughUser) {
         throw new Error('Relay through user not implemented yet')
@@ -98,21 +67,20 @@ class PerkService {
           )
         }
 
-        const txHash = await EOAManagerService._call(
-          factoryAddress,
-          'addPerk',
-          {
-            // pass the metadata, perkKeys and perkProperties to the contract
+        const txHash = await EOAManagerService._call({
+          contractAddress: factoryAddress,
+          methodName: 'addPerk',
+          params: {
             types: ['address', 'string', 'string', 'string[]', 'string[]'],
             values: [
               assetAddress,
               perkName,
               metadata,
-              serializedPerkKeys,
-              serializedPerkProperties,
-            ], // Values of the parameters
+              perkKeys,
+              perkProperties,
+            ],
           },
-        )
+        })
         console.log('txHash:', txHash)
         const receipt: TransactionReceipt | void =
           await EOAManagerService.waitForTransactionReceipt(txHash)
@@ -120,6 +88,8 @@ class PerkService {
           throw new Error('Error getting transaction receipt')
         }
 
+        // This function is used to serialize the BigInts in the receipt so that they can be sent to the frontend,
+        // since JSON.stringify does not support BigInts
         const deepSerializeBigInt = (obj: Object): Object => {
           if (obj === null || obj === undefined) {
             return obj

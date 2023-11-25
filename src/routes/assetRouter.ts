@@ -1,8 +1,8 @@
 import express from 'express'
-import { addPerk } from '../controllers/assetPerkController'
+import { getAssets } from '../controllers/assetController'
 
 const router = express.Router()
 
-router.post('/add', addPerk)
+router.get('/all', getAssets)
 
 export default module.exports = router as express.Router

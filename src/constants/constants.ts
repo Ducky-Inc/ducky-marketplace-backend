@@ -6,4 +6,9 @@ export const CONSTANTS = {
   IPFS_NODE_URL: 'https://ipfs.lukso.network',
   DISABLE_LOCAL_IPFS: true,
   PINATA_API_URL: 'https://api.pinata.cloud/pinning/pinFileToIPFS',
+  DB_CONNECTOR: 'sqlite::memory:',
+
+  HTTP_STATUS_CODES: {
+    TOO_MANY_REQUESTS: 429,
+  },
 }

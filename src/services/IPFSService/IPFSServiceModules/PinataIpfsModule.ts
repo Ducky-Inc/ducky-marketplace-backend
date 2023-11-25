@@ -12,6 +12,15 @@ class IpfsService implements IpfsServiceType {
   private GatewayUrl = 'https://gateway.pinata.cloud/ipfs/'
   public state: 'Ready' | 'Not Ready' = 'Not Ready'
 
+  public gatewayComponent = {
+    // State for the functions using the gateway
+    FailuresSinceLastSuccess: 0,
+    LastSuccess: 0,
+    initialRateLimit: 60, // 60 seconds
+    RateLimitState: 'Limited' as 'Ready' | 'Limited',
+    // url: this.GatewayUrl,
+  }
+
   constructor() {
     void this._init()
   }
@@ -113,37 +122,47 @@ class IpfsService implements IpfsServiceType {
   //@Param hash: string - the hash (CID) of the file to retrieve
   // IPFS retrieval is rate limited, so we need to implement exponential backoff
   async retrieveFromIPFS(hash: string): Promise<any> {
-    // async function to wait for the delay to pass before making the request to IPFS again
-    let success = false
-    let attempt = 0
-
-    while (!success) {
-      if (!this.pinataApiKey) {
-        throw new Error('Pinata API key is not set')
+    if (this.gatewayComponent.RateLimitState === 'Limited') {
+      const canContinue = this.checkRateLimitHasPassed()
+      if (!canContinue) {
+        throw new Error('Failed to retrieve data from IPFS')
       }
-      if (attempt > 0) {
-        const delay = Math.pow(2, attempt) * 1000
+    }
 
-        // wait for the delay to pass before making the request to IPFS again
-        await new Promise(resolve => setTimeout(resolve, delay))
-      }
+    if (!this.pinataApiKey) {
+      throw new Error('Pinata API key is not set')
+    }
 
-      try {
-        const response = await axios.get(
-          `${this.GatewayUrl}${hash}?pinataGatewayToken=${this.pinataApiKey}`,
-        )
-        success = true
-        return response.data
-      } catch (error) {
-        console.error('Error retrieving data from IPFS:', error.message)
-        console.log(error.response)
-        if (error.response && error.response.status === 429) {
-          // too many requests, try again after a delay
-          attempt++
-        } else {
-          throw new Error('Failed to retrieve data from IPFS')
-        }
+    try {
+      const response = await axios.get(
+        `${this.GatewayUrl}${hash}?pinataGatewayToken=${this.pinataApiKey}`,
+      )
+      this.gatewayComponent.RateLimitState = 'Ready' // set the state to ready and reset the failure counter
+      this.gatewayComponent.FailuresSinceLastSuccess = 0
+      return response.data
+    } catch (error) {
+      console.log('Error retrieving data from IPFS:', error.message)
+      console.log(error.response)
+      if (error.response && error.response.status === 429) {
+        // too many requests, try again after a delay
+        // Increment the exponential backoff attempt counter
+        this.gatewayComponent.RateLimitState = 'Limited'
+        this.gatewayComponent.FailuresSinceLastSuccess++
+      } else {
+        throw new Error('Failed to retrieve data from IPFS')
       }
+    }
+  }
+
+  checkRateLimitHasPassed = (): boolean => {
+    const now = Date.now()
+    const lastSuccess = this.gatewayComponent.LastSuccess
+    const timeSinceLastSuccess = now - lastSuccess
+    // Check if the rate limit has passed by checking the number of failures since the last success
+    if (timeSinceLastSuccess > this.gatewayComponent.initialRateLimit * 1000) {
+      // The rate limit has passed, so we can continue
+      this.gatewayComponent.RateLimitState = 'Ready'
+      return true
     }
   }
 }

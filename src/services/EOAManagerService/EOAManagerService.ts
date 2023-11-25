@@ -17,7 +17,7 @@ import { callParams } from '../../types/callParams'
 
 class EOAManagerService {
   //we need web3 to interact with the blockchain
-  private web3: Web3
+  public web3: Web3
   // we need the private key to sign transactions
   private privateKey: string
   // we need the address of the EOA to sign transactions
@@ -76,7 +76,7 @@ class EOAManagerService {
           const estimatedGas = await this.web3.eth.estimateGas(transaction)
           transaction.gas = estimatedGas.toString()
         } catch (estimateError) {
-          console.error('Error estimating gas:', estimateError)
+          console.log('Error estimating gas:', estimateError)
           throw new Error('Failed to estimate gas')
         }
       } else {
@@ -157,14 +157,20 @@ class EOAManagerService {
   }
 
   // Call a function
-  async _call(
-    contractAddress: string,
-    methodName: string,
-    params: callParams, // array of keys and values (ex) {[key1: value1], [key2: value2]} or {[key1: [value1, value2]]}
-  ): Promise<string> {
+  async _call({
+    contractAddress,
+    methodName,
+    params, // array of keys and values (ex) {[key1: value1], [key2: value2]} or {[key1: [value1, value2]]}
+  }: {
+    contractAddress: string
+    methodName: string
+    params: callParams
+  }): Promise<string> {
     try {
       // Get the method signature
       const { types, values } = params
+      console.log('types', types)
+      console.log('values', values)
 
       const methodSignature = `${methodName}(${types.join(',')})`
       let methodId = this.web3.utils.sha3(methodSignature).substring(0, 10)
@@ -186,8 +192,8 @@ class EOAManagerService {
       const result = await this.callContract(contractAddress, encodedCall)
       return result
     } catch (error) {
-      console.error('Error calling contract:', error)
-      throw new Error('Failed to call contract')
+      console.log('Error calling contract:', error)
+      return undefined
     }
   }
 }

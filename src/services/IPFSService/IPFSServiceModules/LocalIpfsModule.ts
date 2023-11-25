@@ -66,7 +66,7 @@ class IpfsService implements IpfsServiceType {
       )
       return response.data
     } catch (error) {
-      console.error('Error retrieving data from IPFS:', error)
+      console.log('Error retrieving data from IPFS:', error)
       throw new Error('Failed to retrieve data from IPFS')
     }
   }

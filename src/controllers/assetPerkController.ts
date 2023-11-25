@@ -7,84 +7,63 @@ import { ERC725, ERC725JSONSchema } from '@erc725/erc725.js'
 import IpfsService from '../services/IPFSService/IPFSService'
 
 // import the PERC Util library
-import * as PERCUtilLib from '../utils/PERCUtil/PERCUtil'
+import * as PERCUtilLib from '../services/PerkService/utils/PERCUtil/PERCUtil'
 let PERCUtil = PERCUtilLib.PERCUtil
 
 import perkService from '../services/PerkService/PerkService'
 
-const checkRedemptionRequest = (req: Request): boolean => {
-  const { redeemRequest } = req.body as { redeemRequest: IRedeemRequest }
-  const { assetAddress, perkName, metadata } = redeemRequest
-  return (
-    typeof assetAddress === 'string' &&
-    typeof perkName === 'string' &&
-    typeof metadata === 'string'
-  )
-}
-
-// Add a perk to a deployed asset
+// Add a perk to a deployed Perk Standard Asset
 export const addPerk = async (req: Request, res: Response) => {
   try {
+    // extract the request body to get the logged in user, or the logged in users submitted Owner address for the perk
+    // const { addPerkRequest } = req.body as { addPerkRequest: IaddPerkRequest }
+
     //attempt to extract the asset address, perk name, and metadata from the request in a way that won't throw an error
     // for now we will have hardcoded while we build the endpoint and envision the data structure
-    let factoryAddress = '0x36C5207240604B96272BBF66e5fE6104FfDA7dc9'
-    let assetAddress = '0x36C5207240604B96272BBF66e5fE6104FfDA7dc9'
+    let factoryAddress = process.env.DUCKY_ASSET_CONTRACT // hardcode for now until we have asset minting working, then we will get it from the request
+    let assetAddress = process.env.DUCKY_ASSET_CONTRACT // This should be the address of the Asset minted from the LSP8 contract
 
-    let perkName = 'Ducky Perk'
-    // generate a perk propertyID for the perk
-    // we will use keccak256(utf8) as the method (from ethers.js)
+    let perkName: string = 'Ducky Perk'
     const perkSchema: string = 'Redeemable@0.0.1'
-    const perkPropertyIDString = web3.utils.keccak256(perkName + perkSchema)
-    const perkPropertyID = ERC725.encodeKeyName(
-      'Perks:<AssetAddress>:<PerkName>:<perkPropertyID>',
-      [assetAddress, perkName, perkPropertyIDString],
-    )
 
-    // An example of the PERC Metadata that we will encode
-    const metadata: PERCUtilLib.Metadata = {
+    const metadata = await PERCUtil.createPERCMetadata({
       perkName: perkName,
       description: 'This is a perk for the Ducky Marketplace',
-      associatedAsset: assetAddress,
-      mainContact: '0x36C5207240604B96272BBF66e5fE6104FfDA7dc9',
+      mintedAssetAddress: assetAddress,
+      mainContractAddress: factoryAddress,
+      perkSchema: perkSchema,
       creator: {
-        name: 'Ducky Marketplace',
-        contactInfo: 'https://ducky.group/contact',
-        address: '0xBb68EEeEDA2DEdb421A4D801113241a5d76906Fc',
+        creatorName: 'Ducky Marketplace',
+        creatorContactInfo: 'https://ducky.group/contact',
+        creatorAddress: '0xBb68EEeEDA2DEdb421A4D801113241a5d76906Fc',
       },
       additionalDetails: {
-        'Hello World': 'Welcome to the Ducky Marketplace!',
-        'easter egg': {
-          description: 'You found the easter egg!',
-          reward: 'You get a free Ducky NFT!',
-          redeem: 'https://ducky.group/redeem',
-          note: "if the redeem link doesn't work, please contact us at https://twitter.com/Real_DuckyGroup/",
-        },
-      },
-      // perk propertyID's and schemaTypes@versions that this perk uses
-      // We could just use LSP2 here and store everything that way but we would need to encode and decode everything and handle all that, for now we will just do this
-      perkKeys: [[perkPropertyID, perkSchema]],
-      perkProperties: [
-        [
-          perkPropertyID,
-          {
-            redeemed: false,
-          },
+        ['Alert']:
+          "Message from the Ducky Marketplace's Perk!, this is a test!",
+        ['Ducky Group Team Broadcast']: ['Welcome to the Ducky Marketplace!'],
+        ['Redemption Instructions']: [
+          'To redeem this perk, please visit the Ducky Marketplace (ducky.group/market)and click the redeem button on the perk you want to redeem. You will be prompted to sign a transaction to redeem the perk. Once you have signed the transaction, you will be able to claim the perk through the Ducky Marketplace.',
         ],
-      ],
-    }
+      },
+    })
 
     // Basically a user enters the data in to the endpoint
     // we take it and pass it here to encode it, breaking the perk properties in to the correct format for the PERC Schemas that are used and passing back:
     // the data to send to the contract
     // the encoded metadata to upload to IPFS
-    const { encodedMetadata, dataToSendToContract } =
-      await PERCUtil.encodeMetadata(metadata, 'Redeemable@0.0.1')
+    const {
+      metadataURI,
+      dataToSendToContract,
+    }: {
+      metadataURI: string
+      dataToSendToContract: PERCUtilLib.OutputOnChainTypeEncoded
+    } = await PERCUtil.encodeMetadata(metadata)
 
     console.log('dataToSendToContract', dataToSendToContract)
-    console.log('encodedMetadata', encodedMetadata)
+    console.log('encodedMetadata', metadataURI)
 
     // pass the request to the perk service to add the perk
-    const result = await perkService.addPerk({
+    await perkService.addPerk({
       assetAddress,
       perkName,
       data: dataToSendToContract,

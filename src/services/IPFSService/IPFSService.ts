@@ -20,6 +20,14 @@ class IPFSService {
     new PinataService(),
   ]
 
+  private state = {
+    // State for the functions using the gateway
+    FailuresSinceLastSuccess: 0,
+    LastSuccess: 0,
+    initialRateLimit: 60, // 60 seconds
+    RateLimitState: 'Limited' as 'Ready' | 'Limited',
+  }
+
   constructor() {}
 
   // Uploads a file to IPFS
@@ -91,35 +99,61 @@ class IPFSService {
   }
 
   // Retrieve data from IPFS
-  async retrieveFromIPFS(hash: string): Promise<any> {
+  async retrieveFromIPFS(hash: string): Promise<string | Buffer | null> {
     try {
-      // TODO: Implement exponential backoff
-      // for now just try each service until one works
-      // pick a random service to start with
-      const randomServiceIndex = Math.floor(
-        Math.random() * this.uploadServices.length,
-      )
-      let serviceIndex = randomServiceIndex
-      let data: any
-      let service: IpfsServiceType
-      while (!data) {
-        service = this.uploadServices[serviceIndex]
-        try {
-          data = await service.retrieveFromIPFS(hash)
-        } catch (error) {
-          console.error('Error retrieving data from IPFS:', error)
-          // if we have tried all services, throw an error
-          if (serviceIndex === this.uploadServices.length - 1) {
-            throw new Error('Failed to retrieve data from IPFS')
-          }
-          // otherwise try the next service
-          serviceIndex++
+      if (!hash) throw new Error('Hash not provided')
+      if (this.state.RateLimitState === 'Limited') {
+        // if we are rate limited, check if we can try again
+        const timeSinceLastSuccess = Date.now() - this.state.LastSuccess
+        if (
+          timeSinceLastSuccess >=
+          this.state.initialRateLimit *
+            1000 *
+            2 ** this.state.FailuresSinceLastSuccess
+        ) {
+          // if we can try again, reset the state
+          this.state.RateLimitState = 'Ready'
+          this.state.FailuresSinceLastSuccess = 0
+        } else {
+          // if we can't try again, throw an error
+          throw new Error('Rate limited')
         }
       }
 
+      let serviceIndex = 0
+      let data: string | Buffer | null = null // Buffer for files, string for metadata
+
+      // if the service fails, try the next one
+      while (!data) {
+        const service = this.uploadServices[serviceIndex]
+        if (!service) throw new Error('No services available')
+        console.log('Trying service:', service.constructor.name)
+
+        try {
+          data = await service.retrieveFromIPFS(hash)
+          this.state.RateLimitState = 'Ready'
+          this.state.FailuresSinceLastSuccess = 0
+        } catch (error) {
+          this.state.RateLimitState = 'Limited'
+          this.state.FailuresSinceLastSuccess++ // increase the failures since last success
+          console.log('Error retrieving data from IPFS:', error)
+          // if we have tried all services, exponenetially backoff until we can try again
+
+          if (serviceIndex < this.uploadServices.length - 1) {
+            serviceIndex++ // try the next service
+          } else {
+            //reset the service index to 0
+            serviceIndex = 0
+          }
+
+          // otherwise try the next service
+        }
+      }
+
+      this.state.LastSuccess = Date.now()
       return data
     } catch (error) {
-      console.error('Error retrieving data from IPFS:', error)
+      console.log('Error retrieving data from IPFS:', error)
       throw new Error('Failed to retrieve data from IPFS')
     }
   }

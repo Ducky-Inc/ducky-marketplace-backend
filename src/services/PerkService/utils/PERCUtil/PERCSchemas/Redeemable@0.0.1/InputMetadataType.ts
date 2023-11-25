@@ -55,12 +55,12 @@ export type OnChainPERCPropertyRedeemableType = {
   redeemed: boolean
 }
 
-// --- Input Types ---
+// --- Input Types --- -- Input for encodeMetadata function
 // PERCMetadata with the perkKeys and perkProperties added to the base type
 // Off-Chain Perk Metadata type Interface for Redeemable@0-0-1, adds OffChainPERCPropertiesRedeemableType to the base type PERCMetadata to give the full type for off-chain PERC Metadata of Redeemable@0-0-1 Schema
 export type InputPERCMetadataType = BasePERCMetadataType & {
-  perkKeys: [string, string][] | [] // This is an array of the perk propertyID's and schemaTypes@versions that this perk uses
-  perkProperties: [string, OffChainPERCPropertiesRedeemableType][] | [] // This is an object that contains the perk propertyID's and schemaTypes@versions that this perk uses
+  perkKeys: [string, string][] // This is an array of the perk propertyID's and schemaTypes@versions that this perk uses
+  perkProperties: [string, OffChainPERCPropertiesRedeemableType][] // This is an object that contains the perk propertyID's and schemaTypes@versions that this perk uses
 }
 
 // --- Output Types ---
@@ -93,7 +93,13 @@ export type OutputOnChainType = {
 }
 
 export type OutputOnChainTypeEncoded = {
-  metadata: string // This is the URI of the metadata that will be uploaded to IPFS
+  metadata?: string // This is the URI of the metadata that will be uploaded to IPFS
   perkKeys: string[] // This is an array of the perk propertyID's and schemaTypes@versions that this perk uses
-  perkProperties: [string][] // This is a stringified object that contains the perk propertyID's and schemaTypes@versions that this perk uses
+  perkProperties: string[] // This is a stringified object that contains the perk propertyID's and the perk property values object as a string
+}
+
+export type newOutputOnChainTypeEncoded = {
+  metadata?: string // This is the URI of the metadata that will be uploaded to IPFS
+  perkKeys: string[] // This is an array of the perk propertyID's and schemaTypes@versions that this perk uses
+  perkProperties: string[] // This is a stringified object that contains the perk propertyID's and the perk property values object as a string
 }
