@@ -13,12 +13,32 @@ import { callParams } from '../../types/callParams'
 import LSP2PerkSchema from '../../contracts/DuckyAsset/_Schemas/LSP2PerkSchema/LSP2PerkSchema.json'
 import { ERC725, ERC725JSONSchema } from '@erc725/erc725.js'
 import { CONSTANTS } from '../../constants/constants'
-import { DecodeDataInput } from '@erc725/erc725.js/build/main/src/types/decodeData'
+import {
+  DecodeDataInput,
+  DecodeDataOutput,
+} from '@erc725/erc725.js/build/main/src/types/decodeData'
+
+// -- Event Handlers -- //
+import RefreshRequiredStrategy from './EventHandlers/RefreshRequired/RefreshRequired'
+import { LSP2KEY_CONSTANTS } from './EventHandlers/LSP2SchemaKeyConstants'
+import LSP2Service from '../LSP2Service/LSP2Service'
+import { URLDataWithHash } from '@erc725/erc725.js/build/main/src/types'
+
+//Strategy Interface for handling events
+export interface IEventStrategy {
+  handleEvent(
+    processedLog: IProcessedLogs,
+    transactionData: any,
+    eventData: any,
+  ): Promise<void>
+}
 
 // an interface that defines what an assets shape is
 // This handles the business logic for the asset table, using the AssetTableService
 class AssetService {
-  private lastBlockScraped: number = 1444789 // we didn't start the standard until block 1430000
+  // Map of event signatures to their respective strategies
+  private eventHandler: Map<string, IEventStrategy>
+  private lastBlockScraped: number = CONSTANTS.DUCKY_ASSET_START_BLOCK // we didn't start the standard until block 1430000
   private latestBlockNumber: any
   // We want to create an asset entry for each asset we want to display on the ducky marketplace
   // Scrape the blockchain for new assets, and create them if found
@@ -26,105 +46,106 @@ class AssetService {
   // We will use the ERC721 standard, and look for the ERC721 events that are emitted when an asset is created
 
   constructor() {
+    //Strategy provider Map for handling events
+    // Todo: refactor as this breaks Open-Closed Principle
+    this.eventHandler = new Map()
+    this.eventHandler.set(
+      EVENT_SIGNATURE.RefreshRequired,
+      new RefreshRequiredStrategy(),
+    )
+
     // Start a function that will keep the latest block number up to date
     this._startScraping()
     this._syncBlockchainLatestBlock()
     // Start the scraper function that will keep the database up to date
   }
 
-  // -- Start of Blockchain Sync -- //
-  //    Helper functions
-  private async _syncBlockchainLatestBlock(): Promise<void> {
-    while (true) {
-      // Get the latest block number from the blockchain
-      try {
-        const latestBlockNumber =
-          await EOAManagerService.web3.eth.getBlockNumber()
+  // -- Rest API -- //
+  public async getAssets(
+    { offset, limit } = { offset: 0, limit: 10 },
+  ): Promise<Asset[]> {
+    // pass the call to the AssetTableService
+    const assets = await AssetTableService.getAssets({
+      offset: offset,
+      limit: limit,
+    })
+    if (!assets) {
+      throw new Error('No assets found')
+    }
+    return assets
+  }
 
-        // Set the latest block number in the local state
-        this.latestBlockNumber = EOAManagerService.web3.utils.toNumber(
-          latestBlockNumber.toString(),
+  // -- End of Rest API -- //
+
+  // -- Helper functions for interfaces -- //
+
+  // Pass in a LSP2KEY_CONSTANTS key to get the data for that key, otherwise get the data for the default key (metadataURI)
+  public _getData = async (
+    assetAddress: string,
+    LSPKeyInput: string,
+    dynamicKeyParts?: string[],
+  ): Promise<DecodeDataOutput> => {
+    if (dynamicKeyParts !== undefined) {
+      //ensure that LSPKeyInput is a string, not a hex string by checking if it has a 0x in it
+      if (LSPKeyInput.includes(':')) {
+        throw new Error(
+          'LSPKeyInput must be a key of a Schema, not a hex string',
         )
-        console.log('Latest block number:', this.latestBlockNumber)
-        // Add a delay before the next scrape to save resources and prevent spamming the blockchain
-      } catch (error) {
-        console.error('Error getting latest block number:', error)
       }
-      await new Promise(resolve => setTimeout(resolve, 6000)) // 6-second delay to not spam the node
-    }
-  }
-
-  // -- End of Blockchain Sync -- //
-
-  // -- Start of Scraper -- //
-
-  //    Main function
-  private async _startScraping(): Promise<void> {
-    while (true) {
-      try {
-        if (this.lastBlockScraped <= this.latestBlockNumber) {
-          // Get the last block scraped + 1
-          //  - Scrape the block data
-          const blockData = await this._scrapeBlock(this.lastBlockScraped + 1)
-
-          // Filter the blocks for the events that we support
-          const filteredBlockData: { processedLogsQueue: IProcessedLogs[] } =
-            await this._filterBlock(blockData, this.lastBlockScraped + 1)
-
-          // if there is no new block data, return
-          if (!filteredBlockData) {
-            continue
-          }
-
-          await this._processBlock({
-            blockData: blockData,
-            startBlockNumber: this.lastBlockScraped + 1,
-            processedLogsQueue: filteredBlockData.processedLogsQueue,
-          })
-        }
-      } catch (error) {
-        console.error('Error scraping block:', error)
-      }
-      // Add a delay before the next scrape to save resources and prevent spamming the blockchain
-      await new Promise(resolve => setTimeout(resolve, 0)) // 0 millisecond delay
-    }
-  }
-
-  // Get a block from the blockchain
-  private async _scrapeBlock(startBlock: number): Promise<any> {
-    // Get the start block from the EOAManagers web3 instance
-    const blockData = await EOAManagerService.web3.eth.getBlock(startBlock)
-    return blockData
-  }
-  // Filter a blocks data for the events we want to process
-  private async _filterBlock(
-    blockData: any,
-    startBlockNumber: any,
-  ): Promise<{ processedLogsQueue: IProcessedLogs[] }> {
-    // console.log(`Filtering Block: ${startBlockNumber}`, blockData)
-
-    if (startBlockNumber % 10 === 0) {
-      console.log(`Filtering Blocks: ${startBlockNumber}`)
-    }
-    const processedLogs: { processedLogsQueue: IProcessedLogs[] } =
-      await AssetServiceUtil.filterForHandledEvents(blockData, startBlockNumber)
-    if (processedLogs && processedLogs.processedLogsQueue === undefined) {
-      // check if the array is empty
-      console.log('response:', processedLogs)
-    }
-    await this._updateLastScrapedBlock(startBlockNumber)
-
-    if (!processedLogs || !processedLogs.processedLogsQueue) {
+    } else if (LSPKeyInput === 'LSP4Metadata') {
       return
     }
-    return { processedLogsQueue: processedLogs.processedLogsQueue }
+    // The key for the metadata URI in the main contract storage
+    //use the key if it is passed in, otherwise use the default key
+    // if it has a ": in we should hash it, otherwise if it's the length of a hash, we should use it as is" 0xb80bc58cb707abc7481424011c1ba223986b6b4302ab48ca53b85c77fb26ff12
+
+    console.log('LSPKeyInput:', LSPKeyInput)
+
+    //encode the key with erc725
+    // const perkPropertyKeysKey = await LSP2Service.encodeKeyName({
+    //   LSP2Schema: LSP2PerkSchema as ERC725JSONSchema[],
+    //   keyName: LSPKeyInput,
+    //   dynamicKeyParts: dynamicKeyParts,
+    // })
+
+    // Call _getData with the asset address
+    console.log('LSPKeyInput _getdata:', LSPKeyInput)
+    const data: DecodeDataOutput = await LSP2Service._getData({
+      contractAddress: assetAddress,
+      key: LSPKeyInput,
+      dynamicKeyParts: dynamicKeyParts,
+      LSP2Schema: LSP2PerkSchema as ERC725JSONSchema[],
+    })
+    console.log('data value:', data)
+    if (!data) {
+      return undefined
+    }
+    //destructure the different types that could be returned in to a data object so users can easily handle the return data instead of having to handle all the types that could be returned
+    const { value, name, key } = data
+    if (typeof value === 'string' || 'string[]') {
+      //if the value is a string, return the string
+      return data
+    }
+
+    if (data.value === null) {
+      //if the value is null, return null
+      return data
+    } else if (typeof value === 'object') {
+      //if the value is an object, return the object
+      return data
+    } else {
+      throw new Error(
+        'Error getting data, property unsupported by the AssetService (JSONURI) ',
+      )
+    }
   }
 
-  private async _getLSP2Data(assetAddress: string): Promise<any> {
+  public async getLSP2Data(assetAddress: string): Promise<any> {
+    throw new Error('Not implemented')
     // Call the _getData method on the asset contract for the keys we want to index
     // I want to map the keys to the EVENT_SIGNATURE.RefreshRequired event
 
-    // Get all the perks for the asset
+    // Get all the perks for the asset, perhaps this should be in the perk service?
     const getAllPerks = async (assetAddress: string): Promise<any> => {
       // Let the supported keys be called for the asset
       // We can call the cover-all method getAllPerks() on the asset contract, we just need to pass in the Minted asset address.
@@ -248,6 +269,93 @@ class AssetService {
     return await getAllPerks(assetAddress)
   }
 
+  // -- End of Helper functions for interfaces -- //
+
+  // -- Start of Blockchain Sync -- //
+  //    Helper functions
+  private async _syncBlockchainLatestBlock(): Promise<void> {
+    while (true) {
+      // Get the latest block number from the blockchain
+      try {
+        const latestBlockNumber =
+          await EOAManagerService.web3.eth.getBlockNumber()
+
+        // Set the latest block number in the local state
+        this.latestBlockNumber = EOAManagerService.web3.utils.toNumber(
+          latestBlockNumber.toString(),
+        )
+        console.log('Latest block number:', this.latestBlockNumber)
+        // Add a delay before the next scrape to save resources and prevent spamming the blockchain
+      } catch (error) {
+        console.error('Error getting latest block number:', error)
+      }
+      await new Promise(resolve => setTimeout(resolve, 6000)) // 6-second delay to not spam the node
+    }
+  }
+  // -- End of Blockchain Sync -- //
+
+  // -- Start of Scraper -- //
+  //    Main function
+  private async _startScraping(): Promise<void> {
+    while (true) {
+      try {
+        if (this.lastBlockScraped < this.latestBlockNumber) {
+          // Get the last block scraped + 1
+          //  - Scrape the block data
+          const blockData = await this._scrapeBlock(this.lastBlockScraped + 1)
+
+          // Filter the blocks for the events that we support
+          const filteredBlockData: { processedLogsQueue: IProcessedLogs[] } =
+            await this._filterBlock(blockData, this.lastBlockScraped + 1)
+
+          // if there is no new block data, return
+          if (!filteredBlockData) {
+            continue
+          }
+
+          await this._processBlock({
+            blockData: blockData,
+            startBlockNumber: this.lastBlockScraped + 1,
+            processedLogsQueue: filteredBlockData.processedLogsQueue,
+          })
+        }
+      } catch (error) {
+        console.error('Error scraping block:', error)
+      }
+      // Add a delay before the next scrape to save resources and prevent spamming the blockchain
+      await new Promise(resolve => setTimeout(resolve, 0)) // 0 millisecond delay
+    }
+  }
+  // Get a block from the blockchain
+  private async _scrapeBlock(startBlock: number): Promise<any> {
+    // Get the start block from the EOAManagers web3 instance
+    const blockData = await EOAManagerService.web3.eth.getBlock(startBlock)
+    return blockData
+  }
+  // Filter a blocks data for the events we want to process
+  private async _filterBlock(
+    blockData: any,
+    startBlockNumber: any,
+  ): Promise<{ processedLogsQueue: IProcessedLogs[] }> {
+    // console.log(`Filtering Block: ${startBlockNumber}`, blockData)
+
+    if (startBlockNumber % 100 === 0) {
+      console.log(`Filtering Blocks: ${startBlockNumber}`)
+    }
+    const processedLogs: { processedLogsQueue: IProcessedLogs[] } =
+      await AssetServiceUtil.filterForHandledEvents(blockData, startBlockNumber)
+    if (processedLogs && processedLogs.processedLogsQueue === undefined) {
+      // check if the array is empty
+      console.log('response:', processedLogs)
+    }
+    await this._updateLastScrapedBlock(startBlockNumber)
+
+    if (!processedLogs || !processedLogs.processedLogsQueue) {
+      return
+    }
+    return { processedLogsQueue: processedLogs.processedLogsQueue }
+  }
+
   // Process the blocks
   private async _processBlock({
     blockData,
@@ -268,6 +376,8 @@ class AssetService {
             // Destructure the logs enclosed in the ProcessedLogs object
             const { eventData, transactionData } = log
 
+            // console.log('eventData:', eventData)
+
             const notify = (event: any) => {
               console.log(
                 `Handling supported block (${startBlockNumber}), matched event:`,
@@ -278,84 +388,18 @@ class AssetService {
             if (!eventData || !transactionData) {
               throw new Error('Error getting event data')
             }
-
-            switch (processedLog.eventSignature) {
-              case EVENT_SIGNATURE.RefreshRequired: // Handle if it's a refreshRequired event
-                //validate it matches our schema
-                const valid = AssetServiceUtil.validateJSONData(
-                  eventData.jsonData,
-                  processedLog.eventSignature,
-                )
-                if (!valid) {
-                  return
-                }
-                console.log('Found valid refreshRequired event JSON data')
-
-                // console.log('eventData:', eventData)
-                // change the strings of the eventData to array of action, assetAddress, and perkName, and key
-                // Get the asset address that emitted the event
-                const assetAddress = transactionData.to
-                // Get the main contracts metadata URI from the main contracts storage if it exists
-                const LSP2Key =
-                  EOAManagerService.web3.utils.keccak256('LSP4Metadata')
-
-                let params: callParams = {
-                  types: ['bytes32'],
-                  values: [LSP2Key],
-                }
-                let assetMetadataURI: string | undefined = undefined
-                try {
-                  assetMetadataURI = await EOAManagerService._call({
-                    contractAddress: assetAddress,
-                    methodName: '_getData',
-                    params,
-                  })
-                } catch (error) {
-                  console.log('Error getting metadata URI, skipping:', error)
-                }
-
-                // Try to fetch each of the keys that we support indexing
-                const ReturnedLSP2Data = await this._getLSP2Data(assetAddress)
-                console.log('ReturnedLSP2Data:', ReturnedLSP2Data)
-
-                let metadata: any = {}
-                //get the metadata from the URI
-                if (assetMetadataURI) {
-                  try {
-                    const response: any =
-                      await IPFSService.retrieveFromIPFS(assetMetadataURI)
-
-                    if (!response) {
-                      throw new Error('Error getting metadata from IPFS')
-                    }
-                    if (response.description) {
-                      metadata = response
-                    }
-                  } catch (error) {
-                    console.log('Error getting metadata from IPFS:', error)
-                  }
-                }
-                const { description, image, external_url, name, attributes } =
-                  metadata
-
-                // console.log('metadata:', metadata)
-                // Create the assets in the database, or update it if it already exists and has an older block number
-                // Create the Perk Table entry for the Asset
-
-                const asset: IAsset = {
-                  address: assetAddress,
-                  metadataURI: assetMetadataURI,
-                  description,
-                  image,
-                  external_url,
-                  name,
-                  owner: transactionData.from,
-                  attributes: JSON.stringify(attributes),
-                }
-                const createdAsset = await AssetTableService.createAsset(asset)
-                if (!createdAsset) {
-                  throw new Error('Error creating asset')
-                }
+            const strategy = this.eventHandler.get(processedLog.eventSignature)
+            if (strategy) {
+              await strategy.handleEvent(
+                processedLog,
+                transactionData,
+                eventData,
+              )
+            } else {
+              console.log(
+                'No strategy found for event signature:',
+                processedLog.eventSignature,
+              )
             }
             notify(processedLog.eventSignature)
           },
@@ -393,19 +437,6 @@ class AssetService {
 
   // -- Public Functions -- //
   // Get a paginated list of assets
-  public async getAssets(
-    { offset, limit } = { offset: 0, limit: 10 },
-  ): Promise<Asset[]> {
-    // pass the call to the AssetTableService
-    const assets = await AssetTableService.getAssets({
-      offset: offset,
-      limit: limit,
-    })
-    if (!assets) {
-      throw new Error('No assets found')
-    }
-    return assets
-  }
 }
 
 export default new AssetService()

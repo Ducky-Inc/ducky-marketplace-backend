@@ -8,6 +8,11 @@ import { IpfsServiceType } from './moduleInterface/IpfsServiceType'
 
 // This class uses both pinata gateway to get files and pinata api to upload files to ipfs
 class IpfsService implements IpfsServiceType {
+  public name: string
+  constructor() {
+    this.name = 'PinataIpfsModule'
+    void this._init()
+  }
   private pinataApiKey = process.env.PINATA_API_KEY
   private GatewayUrl = 'https://gateway.pinata.cloud/ipfs/'
   public state: 'Ready' | 'Not Ready' = 'Not Ready'
@@ -19,10 +24,6 @@ class IpfsService implements IpfsServiceType {
     initialRateLimit: 60, // 60 seconds
     RateLimitState: 'Limited' as 'Ready' | 'Limited',
     // url: this.GatewayUrl,
-  }
-
-  constructor() {
-    void this._init()
   }
 
   async _init() {
@@ -141,8 +142,8 @@ class IpfsService implements IpfsServiceType {
       this.gatewayComponent.FailuresSinceLastSuccess = 0
       return response.data
     } catch (error) {
-      console.log('Error retrieving data from IPFS:', error.message)
-      console.log(error.response)
+      // console.log('Error retrieving data from IPFS:', error.message)
+      // console.log(error.response)
       if (error.response && error.response.status === 429) {
         // too many requests, try again after a delay
         // Increment the exponential backoff attempt counter

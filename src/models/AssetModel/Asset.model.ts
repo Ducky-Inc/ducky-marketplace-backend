@@ -1,5 +1,6 @@
 import { Model, DataTypes } from 'sequelize'
 import sequelize from '../../connectors/Database/strategies/loadConstant'
+import Perk from '../PerkModel/Perk.model'
 
 export interface IAsset {
   address: number
@@ -27,6 +28,7 @@ export class Asset extends Model {
   public readonly createdAt!: Date
   public readonly updatedAt!: Date
 }
+
 Asset.init(
   {
     address: {
@@ -67,5 +69,10 @@ Asset.init(
     modelName: 'Asset', // We need to choose the model name
   },
 )
+
+// Asset.hasMany(Perk, {
+//   foreignKey: 'assetAddress',
+//   as: 'perks',
+// })
 
 export default Asset

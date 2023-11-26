@@ -96,6 +96,7 @@ export class Redeemable001 implements PERCUtilInterface {
     passedPerkSchema?: string
   }> => {
     try {
+      const perkID = CONSTANTS.TEST_PROPERTY_ID
       // Deserialize the perkKeys and perkProperties
       const { perkKeys, perkProperties, associatedAsset, perkName } = metadata
 
@@ -105,11 +106,16 @@ export class Redeemable001 implements PERCUtilInterface {
         metadata.associatedAsset,
         CONSTANTS.RPC_URL,
       )
+
       let encodedDataArray: any = [] // Ensure this is initialized as an array
 
       // For each perk key, encode the key and then encode the data
       for (let i = 0; i < perkKeys.length; i++) {
+        console.log('perkKeys:', perkKeys)
         const [perkPropertyID, schemaVersion] = perkKeys[i]
+
+        console.log('perkPropertyID:', perkPropertyID)
+        console.log('schemaVersion:', schemaVersion)
 
         if (schemaVersion !== passedPerkSchema) {
           console.log(`Skipping perkKey[${i}]: Schema version mismatch.`)
@@ -120,24 +126,35 @@ export class Redeemable001 implements PERCUtilInterface {
         }
 
         const value: string[] = [JSON.stringify(perkProperties[i])]
+        console.log('value:', value)
         console.log('Encoding property:', { perkPropertyID, value })
+        let perkPropertyIDHash = perkPropertyID.slice(0, -40)
+        // remove the trailing 0x and whitespace
+        perkPropertyIDHash = perkPropertyIDHash.slice(2).trim()
+
+        console.log('perkPropertyIDHash:', perkPropertyIDHash)
 
         // export type EncodeDataType = string | string[] | JSONURLDataToEncode | boolean;
 
+        let key = EOAManagerService.web3.utils.keccak256(
+          associatedAsset + perkName,
+        )
+        let perkIDHex = '0x' + perkID
+
         const data: EncodeDataInput[] = [
           {
-            keyName: 'Perks:<AssetAddress>:<PerkName>:<perkPropertyID>',
+            keyName: CONSTANTS.PERK_SCHEMA_KEYS.PerkPropertyID,
+            dynamicKeyParts: [key, perkIDHex],
             value: value,
           },
         ]
+        console.log('data.keyName' + data[0].keyName)
+        console.log('data.dynamicKeyParts' + data[0].dynamicKeyParts)
+        console.log('data.value' + data[0].value)
 
-        // get the key from the perkSchemaItem
-        console.log('perkSchemaJSON:', PerkKeySchema[2])
         // encode to get the key with erc725
-        const encodedData = erc725.encodeData(data, [
-          PerkKeySchema[2] as any,
-          [associatedAsset, perkName, perkPropertyID],
-        ])
+        const encodedData = erc725.encodeData(data)
+        console.log('encodedData:', encodedData)
 
         if (encodedData.keys[0]) {
           console.log('encodedData:', encodedData)

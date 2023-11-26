@@ -9,6 +9,12 @@ import AssetService from './src/services/AssetService/AssetService'
 import assetPerkRouter from './src/routes/assetPerkRouter'
 import assetRouter from './src/routes/assetRouter'
 
+//Tables
+import AssetTableUtil from './src/services/AssetService/utils/AssetTableUtil'
+import PerkTableUtil from './src/services/AssetService/utils/tables/PerkTableUtil'
+const assetTableUtil = AssetTableUtil
+const perkTableUtil = PerkTableUtil
+
 const app: Application = express()
 const port = process.env.PORT || 8001
 

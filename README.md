@@ -2,33 +2,6 @@
 
 ### Setup
 
-- Install dependencies
-  - `npm install`
-- Create a `.env` file in the root directory
-  - Copy the contents of `.env.template` into `.env`
-    - Fill in the values for the environment variables
-    - Generate keys from <https://vanity-eth.tk/>
-
-### Deployment
-
-TODO: Add deployment instructions
-
-### Development
-
-npm run dev
-
-### Testing
-
-### Architecture
-
-Here's the revised README for the Ducky Marketplace Backend:
-
----
-
-## Ducky Marketplace Backend
-
-### Setup
-
 #### Install Dependencies
 
 - Run `npm install` to install necessary packages.
@@ -117,3 +90,6 @@ Perk Types and Use Cases:
 - MembershipPerk@1.0.0 - Grants access to a digital item based on a user's membership status.  (conceptual)
 
 - HoldingDurationPerk@1.0.0 - Grants access or benefits to a user who holds the digital item for a specified duration. This perk type is ideal for encouraging long-term engagement and loyalty. For example, a user might need to hold a digital collectible for six months to unlock exclusive content or receive a special reward.  (conceptual)
+
+### LSP2 Perk Schema for Ducky Marketplace LSP8
+<https://github.com/lukso-network/LIPs/blob/main/LSPs/LSP-2-ERC725YJSONSchema.md#value-type>

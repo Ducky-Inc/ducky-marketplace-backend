@@ -76,7 +76,6 @@ class EOAManagerService {
           const estimatedGas = await this.web3.eth.estimateGas(transaction)
           transaction.gas = estimatedGas.toString()
         } catch (estimateError) {
-          console.log('Error estimating gas:', estimateError)
           throw new Error('Failed to estimate gas')
         }
       } else {
@@ -93,7 +92,6 @@ class EOAManagerService {
           throw new Error('Failed to get current gas price')
         }
       }
-      console.log('test')
 
       // Sign the transaction
       const signedTx = await this.web3.eth.accounts.signTransaction(
@@ -111,7 +109,7 @@ class EOAManagerService {
       throw new Error('Failed to send transaction')
     } catch (error) {
       console.error('Error sending transaction:', error)
-      throw new Error('Failed to send transaction')
+      return undefined
     }
   }
 
@@ -169,15 +167,9 @@ class EOAManagerService {
     try {
       // Get the method signature
       const { types, values } = params
-      console.log('types', types)
-      console.log('values', values)
 
       const methodSignature = `${methodName}(${types.join(',')})`
       let methodId = this.web3.utils.sha3(methodSignature).substring(0, 10)
-
-      //show the method name and types
-      console.log('methodSignature', methodSignature)
-      console.log('paramValues', values)
 
       //convert the values to a string
       // this will take an array of values and convert it to a string
@@ -190,10 +182,11 @@ class EOAManagerService {
       const encodedCall = methodId + encodedParameters.substring(2)
 
       const result = await this.callContract(contractAddress, encodedCall)
-      return result
+      if (result) {
+        return result
+      }
     } catch (error) {
-      console.log('Error calling contract:', error)
-      return undefined
+      throw new Error('Failed to call contract')
     }
   }
 }

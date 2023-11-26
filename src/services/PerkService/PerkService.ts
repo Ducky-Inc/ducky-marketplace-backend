@@ -66,12 +66,14 @@ class PerkService {
             'Error encoding data, perkKeys and perkProperties are not the same length',
           )
         }
+        console.log('perkKeys:', perkKeys)
+        console.log('perkProperties:', perkProperties)
 
         const txHash = await EOAManagerService._call({
           contractAddress: factoryAddress,
           methodName: 'addPerk',
           params: {
-            types: ['address', 'string', 'string', 'string[]', 'string[]'],
+            types: ['address', 'string', 'string', 'bytes32[]', 'string[]'],
             values: [
               assetAddress,
               perkName,

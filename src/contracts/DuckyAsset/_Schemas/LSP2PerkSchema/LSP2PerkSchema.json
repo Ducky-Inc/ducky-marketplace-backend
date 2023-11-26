@@ -1,21 +1,22 @@
 [
   {
-    "name": "Perks:<AssetAddress>:<PerkName>:Metadata",
-    "key": "0x7209ece5e2ac0f6752e14a92ae8f33b9a8c7f17a0ac7c6feedc322e8b9d5fe19",
+    "name": "Perks:Metadata:<bytes32>",
+    "key": "0x2264ad86cc9f1f4f2b9700001ac83fdd237ea6789468a02fa72c2d7ff67ba057",
     "keyType": "MappingWithGrouping",
     "valueType": "string",
     "valueContent": "JSONURL"
   },
   {
-    "name": "Perks:<AssetAddress>:<PerkName>:perkPropertyKeys",
-    "key": "0xb80bc58cb707abc7481424011c1ba223986b6b4302ab48ca53b85c77fb26ff12",
+    "name": "Perks:PerkPropertyKeys:<bytes32>",
+    "key": "0x2264ad86cc9f69f743fa00001ac83fdd237ea6789468a02fa72c2d7ff67ba057",
     "keyType": "MappingWithGrouping",
     "valueType": "string[]",
     "valueContent": "String"
   },
+
   {
-    "name": "Perks:<AssetAddress>:<PerkName>:<perkPropertyID>",
-    "key": "0xe6eff78e7d073729ba426f644c14a47696cd3a2fba4cdb008e7ba007b87c1b8c",
+    "name": "Perks:<bytes32>:<bytes32>",
+    "key": "0x2264ad86cc9ff46d33f300000000000000000000000000000000000000000000",
     "keyType": "MappingWithGrouping",
     "valueType": "string[]",
     "valueContent": "String"

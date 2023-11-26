@@ -7,6 +7,10 @@ import { ERC725, ERC725JSONSchema } from '@erc725/erc725.js'
 import { IRedeemRequest } from '../../../../interfaces/IRedeemRequest'
 import { IaddPerkRequest } from '../../../../interfaces/IaddPerkRequest'
 
+import LSP2PerkSchema from '../../../../contracts/DuckyAsset/_Schemas/LSP2PerkSchema/LSP2PerkSchema.json'
+import LSP2Service from '../../../LSP2Service/LSP2Service'
+import { CONSTANTS } from '../../../../constants/constants'
+
 /*
  *
  */
@@ -135,7 +139,9 @@ export class PERCUtil {
   }: ICreatePerkMetadata): Promise<Metadata> => {
     const perkPropertyID = await PERCUtil.generatePerkPropertyID({
       assetAddress: mintedAssetAddress,
+      factoryAddress: mainContractAddress,
       perkName,
+      perkID: '1',
     })
 
     // An example of the PERC Metadata that we will encode for the perk
@@ -189,20 +195,38 @@ export class PERCUtil {
 
   static generatePerkPropertyID = async ({
     assetAddress,
+    factoryAddress,
     perkName,
+    perkID = '1',
   }: {
     assetAddress: string
+    factoryAddress: string
     perkName: string
+    perkID?: string
   }) => {
     // generate a perk propertyID (nonce to prevent collisions) for the perk
     // We use a nonce so we can generate a unique propertyID for multiple schema types
-    const nonce = EOAManagerService.web3.utils.randomHex(32)
-    const perkPropertyIDString = EOAManagerService.web3.utils.keccak256(nonce)
-    const perkPropertyID = ERC725.encodeKeyName(
-      'Perks:<AssetAddress>:<PerkName>:<perkPropertyID>',
-      [assetAddress, perkName, perkPropertyIDString],
+
+    // convert to hex 32 bytes
+    let perkIDHex = '0x' + perkID.padStart(64, '0') // pad the perkID with 0's to make it 32 bytes
+    console.log('perkIDHex', perkIDHex.length)
+
+    //0x0000000000000000000000000000000000000000000000000000000000000000
+    //0x0000000000000000000000000000000000000000
+    //
+    const perkNameAddressbytes32 = EOAManagerService.web3.utils.keccak256(
+      assetAddress + perkName,
     )
-    return perkPropertyID
+
+    console.log('encoding perkPr')
+    // fetch the perkKeys
+    const perkPropertyKeysKey = await LSP2Service.encodeKeyName({
+      LSP2Schema: LSP2PerkSchema as ERC725JSONSchema[],
+      assetAddress: factoryAddress,
+      keyName: CONSTANTS.PERK_SCHEMA_KEYS.PerkPropertyID,
+      dynamicKeyParts: [perkNameAddressbytes32, perkIDHex],
+    })
+    return perkPropertyKeysKey
   }
 }
 

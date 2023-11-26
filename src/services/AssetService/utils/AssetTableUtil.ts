@@ -1,4 +1,5 @@
 import Asset, { IAsset } from '../../../models/AssetModel/Asset.model'
+import { Perk } from '../../../models/PerkModel/Perk.model'
 
 // This is a class that defines actions that can be taken on the Asset table
 class AssetTableUtil {
@@ -41,9 +42,25 @@ class AssetTableUtil {
     { offset, limit } = { offset: 0, limit: 10 },
   ): Promise<Asset[]> {
     const assets = await Asset.findAll({
+      // include: [ // association not working as expected yet
+      //   {
+      //     model: Perk,
+      //     as: 'perks',
+      //     attributes: ['id', 'name', 'description', 'image', 'external_url'],
+      //   },
+      // ],
       offset: offset * limit,
       limit: limit,
     })
+
+    //hacky but whatever
+    for (let i = 0; i < assets.length; i++) {
+      const asset = assets[i]
+      const perks = await Perk.findAll({
+        where: { assetAddress: asset.address },
+      })
+      asset.setDataValue('perks', perks)
+    }
     console.log('assets:', assets)
     if (!assets) {
       throw new Error('No assets found')
