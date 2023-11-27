@@ -41,4 +41,4 @@ ENV FRONTEND_URL=$FRONTEND_URL
 # Display the directory structure
 RUN ls -al
 # Run the app when the container launches
-CMD ["node", "build/index.js"]
+CMD ["node", "dist/index.js"]
