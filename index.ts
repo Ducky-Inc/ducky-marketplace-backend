@@ -20,12 +20,13 @@ const app: Application = express()
 const port = process.env.PORT || 8001
 // To allow specific origin
 app.use(
-  cors({
-    origin: [
-      'http://localhost:3000', // For local development
-      'https://rewired-frontend-ducky-marketplace.vercel.app', // For production
-    ],
-  }),
+  cors(),
+  //   {
+  //   origin: [
+  //     'http://localhost:3000', // For local development
+  //     `${process.env.FRONTEND_URL}`, // For production
+  //   ],
+  // }
 )
 // Loading Singleton Services
 const assetService = AssetService
