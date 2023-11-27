@@ -4,14 +4,15 @@ FROM node:14
 # Set the working directory in the container
 WORKDIR /usr/src/app
 
-# Copy the current directory contents into the container at /usr/src/app
-COPY . .
-
 # Install any needed packages specified in package.json
 RUN npm install
 
+# Copy the current directory contents into the container at /usr/src/app
+COPY . .
+
 # build the app
 RUN npm run build || true
+
 
 # Make port 3000 available to the world outside this container
 EXPOSE 3000
@@ -40,4 +41,4 @@ ENV FRONTEND_URL=$FRONTEND_URL
 # Display the directory structure
 RUN ls -al
 # Run the app when the container launches
-CMD ["npm", "run", "start"]
+CMD ["node", "build/index.js"]
