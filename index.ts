@@ -19,15 +19,14 @@ const perkTableUtil = PerkTableUtil
 const app: Application = express()
 const port = process.env.PORT || 8001
 // To allow specific origin
-app.use(
-  cors(),
-  //   {
-  //   origin: [
-  //     'http://localhost:3000', // For local development
-  //     `${process.env.FRONTEND_URL}`, // For production
-  //   ],
-  // }
-)
+app.use(cors({ origin: true })) // Allow all origins for now
+//   {
+//   origin: [
+//     'http://localhost:3000', // For local development
+//     `${process.env.FRONTEND_URL}`, // For production
+//   ],
+// }
+
 // Loading Singleton Services
 const assetService = AssetService
 
