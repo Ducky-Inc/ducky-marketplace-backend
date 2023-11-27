@@ -36,5 +36,8 @@ ENV GATEWAY_KEY=$GATEWAY_KEY
 ENV GATEWAY_URL=$GATEWAY_URL
 ENV FRONTEND_URL=$FRONTEND_URL
 
+
+# Display the directory structure
+RUN ls -al
 # Run the app when the container launches
 CMD ["npm", "run", "start"]
