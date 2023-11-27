@@ -34,6 +34,8 @@ ENV GATEWAY_URL=$GATEWAY_URL
 ENV FRONTEND_URL=$FRONTEND_URL
 
 
+# build the app
+RUN npm run build 
 
 # Run the app when the container launches
-CMD ["npm", "start"]
+CMD ["npm", "run", "start"]
