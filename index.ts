@@ -19,7 +19,9 @@ const perkTableUtil = PerkTableUtil
 const app: Application = express()
 const port = process.env.PORT || 8001
 // To allow specific origin
-app.use(cors({ origin: true })) // Allow all origins for now
+app.use(cors()) // Allow all origins for now
+app.options('*', cors()) // Allow all origins for now
+
 //   {
 //   origin: [
 //     'http://localhost:3000', // For local development
