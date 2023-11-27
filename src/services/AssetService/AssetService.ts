@@ -84,12 +84,12 @@ class AssetService {
     assetAddress: string,
     LSPKeyInput: string,
     dynamicKeyParts?: string[],
-  ): Promise<DecodeDataOutput> => {
+  ): Promise<any> => {
     if (dynamicKeyParts !== undefined) {
       //ensure that LSPKeyInput is a string, not a hex string by checking if it has a 0x in it
       if (LSPKeyInput.includes(':')) {
         throw new Error(
-          'LSPKeyInput must be a key of a Schema, not a hex string',
+          'AssetService LSPKeyInput must be a key of a Schema, not a hex string',
         )
       }
     } else if (LSPKeyInput === 'LSP4Metadata') {
@@ -99,7 +99,7 @@ class AssetService {
     //use the key if it is passed in, otherwise use the default key
     // if it has a ": in we should hash it, otherwise if it's the length of a hash, we should use it as is" 0xb80bc58cb707abc7481424011c1ba223986b6b4302ab48ca53b85c77fb26ff12
 
-    console.log('LSPKeyInput:', LSPKeyInput)
+    console.log('AssetService LSPKeyInput:', LSPKeyInput)
 
     //encode the key with erc725
     // const perkPropertyKeysKey = await LSP2Service.encodeKeyName({
@@ -109,35 +109,43 @@ class AssetService {
     // })
 
     // Call _getData with the asset address
-    console.log('LSPKeyInput _getdata:', LSPKeyInput)
-    const data: DecodeDataOutput = await LSP2Service._getData({
+    console.log('AssetService LSPKeyInput _getdata: LSPKeyInput', LSPKeyInput)
+    console.log(
+      'AssetService dynamicKeyParts _getdata:  dynamicKeyParts',
+      dynamicKeyParts,
+    )
+    if (!dynamicKeyParts) {
+      dynamicKeyParts = []
+    }
+    const data = await LSP2Service._getData({
       contractAddress: assetAddress,
       key: LSPKeyInput,
-      dynamicKeyParts: dynamicKeyParts,
+      dynamicKeyParts,
       LSP2Schema: LSP2PerkSchema as ERC725JSONSchema[],
     })
-    console.log('data value:', data)
+    console.log('AssetService data value:', data)
+
     if (!data) {
       return undefined
     }
-    //destructure the different types that could be returned in to a data object so users can easily handle the return data instead of having to handle all the types that could be returned
-    const { value, name, key } = data
-    if (typeof value === 'string' || 'string[]') {
-      //if the value is a string, return the string
-      return data
-    }
+    return data
+    // //destructure the different types that could be returned in to a data object so users can easily handle the return data instead of having to handle all the types that could be returned
+    // if (typeof data === 'string') {
+    //   //if the value is a string, return the string
+    //   return data
+    // }
 
-    if (data.value === null) {
-      //if the value is null, return null
-      return data
-    } else if (typeof value === 'object') {
-      //if the value is an object, return the object
-      return data
-    } else {
-      throw new Error(
-        'Error getting data, property unsupported by the AssetService (JSONURI) ',
-      )
-    }
+    // if (data === null) {
+    //   //if the value is null, return null
+    //   return data
+    // } else if (typeof value === 'object') {
+    //   //if the value is an object, return the object
+    //   return data
+    // } else {
+    //   throw new Error(
+    //     'Error getting data, property unsupported by the AssetService (JSONURI) ',
+    //   )
+    // }
   }
 
   public async getLSP2Data(assetAddress: string): Promise<any> {
@@ -313,7 +321,7 @@ class AssetService {
             continue
           }
 
-          await this._processBlock({
+          let status = await this._processBlock({
             blockData: blockData,
             startBlockNumber: this.lastBlockScraped + 1,
             processedLogsQueue: filteredBlockData.processedLogsQueue,
@@ -365,7 +373,7 @@ class AssetService {
     blockData: any
     startBlockNumber: any
     processedLogsQueue: IProcessedLogs[]
-  }): Promise<void> {
+  }): Promise<{ error?: string } | void> {
     // Process the logs in the queue
     processedLogsQueue.forEach(
       // for each IProcessedLogs in the queue
@@ -380,13 +388,16 @@ class AssetService {
 
             const notify = (event: any) => {
               console.log(
-                `Handling supported block (${startBlockNumber}), matched event:`,
+                `Finished processing supported block (${startBlockNumber}), matched event:`,
                 event,
               )
             }
 
             if (!eventData || !transactionData) {
-              throw new Error('Error getting event data')
+              // Backoff exponentially if we don't have the data we need
+              console.log('Error getting event data, backing off exponentially')
+
+              throw new Error('Error getting event data, node is overloaded?')
             }
             const strategy = this.eventHandler.get(processedLog.eventSignature)
             if (strategy) {

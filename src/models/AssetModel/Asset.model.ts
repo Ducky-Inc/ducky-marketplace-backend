@@ -3,7 +3,7 @@ import sequelize from '../../connectors/Database/strategies/loadConstant'
 import Perk from '../PerkModel/Perk.model'
 
 export interface IAsset {
-  address: number
+  address: string
   metadataURI: string | undefined
   owner: string | undefined
   name: string | undefined

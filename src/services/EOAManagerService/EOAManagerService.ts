@@ -189,6 +189,39 @@ class EOAManagerService {
       throw new Error('Failed to call contract')
     }
   }
+
+  public async callMethod({
+    contractAddress,
+    methodName,
+    params, // array of keys and values (ex) {[key1: value1], [key2: value2]} or {[key1: [value1, value2]]}
+  }: {
+    contractAddress: string
+    methodName: string
+    params: callParams
+  }) {
+    // Get the method signature
+    const { types, values } = params
+
+    const methodSignature = `${methodName}(${types.join(',')})`
+    let methodId = this.web3.utils.sha3(methodSignature).substring(0, 10)
+
+    //convert the values to a string
+    // this will take an array of values and convert it to a string
+    // Encode the parameters
+    const encodedParameters = this.web3.eth.abi.encodeParameters(types, values)
+
+    const encodedCall = methodId + encodedParameters.substring(2)
+
+    const result = await this.web3.eth.call({
+      to: contractAddress,
+      data: encodedCall,
+    })
+    if (result) {
+      return result
+    } else {
+      throw new Error('Failed to call contract')
+    }
+  }
 }
 
 export default new EOAManagerService()

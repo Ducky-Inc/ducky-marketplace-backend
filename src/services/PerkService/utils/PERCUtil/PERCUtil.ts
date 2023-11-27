@@ -208,12 +208,10 @@ export class PERCUtil {
     // We use a nonce so we can generate a unique propertyID for multiple schema types
 
     // convert to hex 32 bytes
-    let perkIDHex = '0x' + perkID.padStart(64, '0') // pad the perkID with 0's to make it 32 bytes
+    let perkIDHex = CONSTANTS.TEST_PROPERTY_ID // pad the perkID with 0's to make it 32 bytes
     console.log('perkIDHex', perkIDHex.length)
 
-    //0x0000000000000000000000000000000000000000000000000000000000000000
-    //0x0000000000000000000000000000000000000000
-    //
+    //0000000000000000000000000000000000000000000000000000000000000001 // 32 bytes (64 characters) of bytes32 goodness
     const perkNameAddressbytes32 = EOAManagerService.web3.utils.keccak256(
       assetAddress + perkName,
     )
@@ -226,6 +224,10 @@ export class PERCUtil {
       keyName: CONSTANTS.PERK_SCHEMA_KEYS.PerkPropertyID,
       dynamicKeyParts: [perkNameAddressbytes32, perkIDHex],
     })
+    console.log(
+      'PERCUtil: perkPropertyKeysKey ENCODED! : ',
+      perkPropertyKeysKey,
+    )
     return perkPropertyKeysKey
   }
 }
