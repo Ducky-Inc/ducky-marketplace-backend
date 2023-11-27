@@ -1,5 +1,6 @@
 import express, { Express, Request, Response, Application } from 'express'
 import 'dotenv/config'
+import cors from 'cors'
 require('dotenv').config()
 
 // Services
@@ -17,6 +18,7 @@ const perkTableUtil = PerkTableUtil
 
 const app: Application = express()
 const port = process.env.PORT || 8001
+app.use(cors())
 
 // Loading Singleton Services
 const assetService = AssetService

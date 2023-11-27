@@ -12,7 +12,9 @@ import { callParams } from '../../../../types/callParams'
 import { EVENT_SIGNATURE } from '../../constants'
 import { LSP2KEY_CONSTANTS } from '../LSP2SchemaKeyConstants'
 import LSP2PerkSchema from '../../../../contracts/DuckyAsset/_Schemas/LSP2PerkSchema/LSP2PerkSchema.json'
-import LSP2Service from '../../../LSP2Service/LSP2Service'
+import LSP2Service, {
+  LSP2Service_getDataReturn,
+} from '../../../LSP2Service/LSP2Service'
 import { ERC725JSONSchema } from '@erc725/erc725.js'
 import { EncodeDataReturn } from '@erc725/erc725.js/build/main/src/types'
 import { CONSTANTS } from '../../../../constants/constants'
@@ -247,49 +249,18 @@ class RefreshRequiredStrategy implements IEventStrategy {
               assetAddress,
               LSP2Key,
             )
-
+            const { parsedJSON, key, address, rawJSON, rawResponse } =
+              perkPropertyIDDataReturn as LSP2Service_getDataReturn
             // If we get here, we have successfully fetched the perk property ID data from the contract
             console.log(
               'RefreshRequiredStrategy fetchperkPropertyIDData: perkPropertyIDDataReturn:',
               perkPropertyIDDataReturn,
             )
 
-            // if it's a string or a string[] we can just push it to the array
-            // otherwise we need to figure out JSONURI and fetch it, we can use fetchData to save time but we still need to encode it
-            let fetchedValue: any = perkPropertyIDDataReturn
-
-            // if (typeof fetchedValue === 'string') {
-            //   perkPropertyIDData.push(fetchedValue)
-            // } else if (Array.isArray(fetchedValue)) {
-            //   // Most likely path as we are converting it to a string array
-            //   for (let i = 0; i < fetchedValue.length; i++) {
-            //     const element = fetchedValue[i]
-            //     if (typeof element === 'string') {
-            //       perkPropertyIDData.push(element)
-            //     }
-            //     if (typeof element === 'object') {
-            //       // If the element is an object, then it is an array of objects or Arrays of objects
-            //       // We need to iterate through each element and push it to the array
-            //       const value = fetchedValue[i]
-            //       console.log('value:', value)
-            //       for (let i = 0; i < value.length; i++) {
-            //         const element = value[i]
-            //         perkPropertyIDData.push(element)
-            //       }
-            //     }
-            //   }
-            // }
-
-            let value = perkPropertyIDDataReturn
-            console.log(
-              'RefreshRequiredStrategy fetchperkPropertyIDData: perkPropertyIDDataReturn value:',
-              value,
-            )
-
             return {
               perkMetadataURI: perkMetadataURI,
-              perkKeys: perkKeys,
-              perkPropertyIDData: perkPropertyIDData,
+              perkKeys: [key],
+              perkPropertyIDData: parsedJSON,
               action: action,
             }
           } catch (error) {
@@ -325,9 +296,6 @@ class RefreshRequiredStrategy implements IEventStrategy {
       if (!eventData.jsonData) {
         console.log(
           eventData.jsonData,
-          'RefreshRequiredHandler:  JSON data not found in event data',
-        )
-        console.log(
           'RefreshRequiredHandler:  JSON data not found in event data',
         )
         return
@@ -450,6 +418,7 @@ class RefreshRequiredStrategy implements IEventStrategy {
         'for assetAddress:',
         assetAddress,
       )
+
       const result = await this._fetchAllPerkKeyData({
         factoryLSP8Address: factoryLSP8Address,
         LSP2keytoFetch: propertyIDLSP2Key,
@@ -457,6 +426,7 @@ class RefreshRequiredStrategy implements IEventStrategy {
         mintedAssetAddress: assetAddress,
       })
       console.log('RefreshRequiredHandler: fetchAllPerkKeyData result:', result)
+      const { perkMetadataURI, perkKeys, perkPropertyIDData, error } = result
 
       // Loop through each of the keys that we support indexing
       const assetMetadataURI = await AssetService._getData(
@@ -481,7 +451,6 @@ class RefreshRequiredStrategy implements IEventStrategy {
         metadata = await this._fetchMetadata(assetMetadataURI)
       }
       const { description, image, external_url, name, attributes } = metadata
-      const { perkMetadataURI, perkKeys, perkPropertyIDData, error } = result
       // console.log('RefreshRequiredHandler: key of perkPropertyIDData:', key)
       if (error) {
         if (error === 'Invalid action type') {
@@ -512,6 +481,7 @@ class RefreshRequiredStrategy implements IEventStrategy {
       const perk: IPerk = {
         perkName: perkName,
         assetAddress: assetAddress,
+        mainContractAddress: factoryLSP8Address,
         perkMetadataURI: perkMetadataURI,
         perkKeys: perkKeys,
         perkPropertyIDData: perkPropertyIDData,
@@ -533,11 +503,12 @@ class RefreshRequiredStrategy implements IEventStrategy {
 
       // After creating the asset, create the perk
       const createdPerk = await Perk.create({
-        perkName: perk.perkName,
-        assetAddress: asset.address,
-        perkMetadataURI: perk.perkMetadataURI,
-        perkKeys: perk.perkKeys,
-        perkPropertyIDData: perk.perkPropertyIDData,
+        perkName: perkName,
+        assetAddress: assetAddress,
+        mainContractAddress: factoryLSP8Address,
+        perkMetadataURI: perkMetadataURI,
+        perkKeys: perkKeys,
+        perkPropertyIDData: perkPropertyIDData,
       })
 
       // // Optionally, if you want to directly associate the created perk with the created asset

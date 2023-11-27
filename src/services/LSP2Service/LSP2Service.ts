@@ -14,8 +14,8 @@ import web3 from 'web3'
 import EOAManagerService from '../EOAManagerService/EOAManagerService'
 import e from 'express'
 
-interface LSP2Service_getDataReturn {
-  parsedJSON: any
+export interface LSP2Service_getDataReturn {
+  parsedJSON: Array<any>
   rawJSON: any
   rawResponse: any
   address: string

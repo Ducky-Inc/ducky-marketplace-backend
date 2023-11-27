@@ -12,6 +12,7 @@ let PERCUtil = PERCUtilLib.PERCUtil
 
 import perkService from '../services/PerkService/PerkService'
 
+//@ Public - post: /api/asset/perk/redeem
 // Add a perk to a deployed Perk Standard Asset
 export const addPerk = async (req: Request, res: Response) => {
   try {

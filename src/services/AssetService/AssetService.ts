@@ -21,7 +21,9 @@ import {
 // -- Event Handlers -- //
 import RefreshRequiredStrategy from './EventHandlers/RefreshRequired/RefreshRequired'
 import { LSP2KEY_CONSTANTS } from './EventHandlers/LSP2SchemaKeyConstants'
-import LSP2Service from '../LSP2Service/LSP2Service'
+import LSP2Service, {
+  LSP2Service_getDataReturn,
+} from '../LSP2Service/LSP2Service'
 import { URLDataWithHash } from '@erc725/erc725.js/build/main/src/types'
 
 //Strategy Interface for handling events
@@ -84,7 +86,7 @@ class AssetService {
     assetAddress: string,
     LSPKeyInput: string,
     dynamicKeyParts?: string[],
-  ): Promise<any> => {
+  ): Promise<LSP2Service_getDataReturn> => {
     if (dynamicKeyParts !== undefined) {
       //ensure that LSPKeyInput is a string, not a hex string by checking if it has a 0x in it
       if (LSPKeyInput.includes(':')) {
@@ -95,25 +97,12 @@ class AssetService {
     } else if (LSPKeyInput === 'LSP4Metadata') {
       return
     }
-    // The key for the metadata URI in the main contract storage
-    //use the key if it is passed in, otherwise use the default key
-    // if it has a ": in we should hash it, otherwise if it's the length of a hash, we should use it as is" 0xb80bc58cb707abc7481424011c1ba223986b6b4302ab48ca53b85c77fb26ff12
+    // console.log('AssetService LSPKeyInput _getdata: LSPKeyInput', LSPKeyInput)
+    // console.log(
+    //   'AssetService dynamicKeyParts _getdata:  dynamicKeyParts',
+    //   dynamicKeyParts,
+    // )
 
-    console.log('AssetService LSPKeyInput:', LSPKeyInput)
-
-    //encode the key with erc725
-    // const perkPropertyKeysKey = await LSP2Service.encodeKeyName({
-    //   LSP2Schema: LSP2PerkSchema as ERC725JSONSchema[],
-    //   keyName: LSPKeyInput,
-    //   dynamicKeyParts: dynamicKeyParts,
-    // })
-
-    // Call _getData with the asset address
-    console.log('AssetService LSPKeyInput _getdata: LSPKeyInput', LSPKeyInput)
-    console.log(
-      'AssetService dynamicKeyParts _getdata:  dynamicKeyParts',
-      dynamicKeyParts,
-    )
     if (!dynamicKeyParts) {
       dynamicKeyParts = []
     }
@@ -123,7 +112,7 @@ class AssetService {
       dynamicKeyParts,
       LSP2Schema: LSP2PerkSchema as ERC725JSONSchema[],
     })
-    console.log('AssetService data value:', data)
+    // console.log('AssetService data value:', data)
 
     if (!data) {
       return undefined
@@ -147,136 +136,6 @@ class AssetService {
     //   )
     // }
   }
-
-  public async getLSP2Data(assetAddress: string): Promise<any> {
-    throw new Error('Not implemented')
-    // Call the _getData method on the asset contract for the keys we want to index
-    // I want to map the keys to the EVENT_SIGNATURE.RefreshRequired event
-
-    // Get all the perks for the asset, perhaps this should be in the perk service?
-    const getAllPerks = async (assetAddress: string): Promise<any> => {
-      // Let the supported keys be called for the asset
-      // We can call the cover-all method getAllPerks() on the asset contract, we just need to pass in the Minted asset address.
-      // THen decode the keys data to get the perks
-      let params: callParams = {
-        types: ['address'],
-        values: [assetAddress],
-      }
-      let perks: any = undefined
-      try {
-        const erc725 = new ERC725(
-          LSP2PerkSchema as ERC725JSONSchema[],
-          assetAddress,
-          CONSTANTS.RPC_URL,
-        )
-
-        // This is going to be a standard so we can't import the ABI
-        const contractAbi = [
-          {
-            inputs: [
-              {
-                internalType: 'address',
-                name: 'assetAddress',
-                type: 'address',
-              },
-            ],
-            name: 'getAllPerks',
-            outputs: [
-              {
-                internalType: 'bytes32[]',
-                name: '',
-                type: 'bytes32[]',
-              },
-            ],
-            stateMutability: 'pure',
-            type: 'function',
-          },
-          {
-            inputs: [
-              {
-                internalType: 'bytes32',
-                name: 'dataKey',
-                type: 'bytes32',
-              },
-            ],
-            name: 'getData',
-            outputs: [
-              {
-                internalType: 'bytes',
-                name: 'dataValue',
-                type: 'bytes',
-              },
-            ],
-            stateMutability: 'view',
-            type: 'function',
-          },
-        ] as const
-
-        // Get an instance to call getAllPerks with
-        const contract = new EOAManagerService.web3.eth.Contract(
-          contractAbi,
-          assetAddress,
-        )
-
-        //encode the keys in the LSP2PerkSchema to use ERC725 to get the data easily
-        let keys: string[] = []
-
-        LSP2PerkSchema.forEach((perkSchemaJSON: any) => {
-          // get the key from the perkSchemaItem
-          perkSchemaJSON[1].name
-          // encode to get the key with erc725
-          erc725.encodeData(perkSchemaJSON[1].name, [
-            assetAddress,
-            perkSchemaJSON[1].name,
-          ])
-          keys.push()
-        })
-
-        // Call _getData with the asset address
-        console.log('assetAddress:', assetAddress)
-
-        if (!keys) {
-          throw new Error('Error getting encoded perks')
-        }
-
-        let data: any = undefined
-        keys.forEach(async (key: string) => {
-          console.log('key:', key)
-          const decodedData = await contract.methods.getData(key).call()
-          console.log('decodedData:', decodedData)
-          data = decodedData
-        })
-
-        // Get the encoded perks from the contract
-        // // Get the perks
-        // const txHash = await EOAManagerService._call({
-        //   contractAddress: assetAddress,
-        //   methodName: 'getAllPerks',
-        //   params,
-        // }) // returns the transaction hash of the call
-        // Get the perks from the transaction receipt
-        // const receipt: TransactionReceipt =
-        //   await EOAManagerService.web3.eth.getTransactionReceipt(txHash)
-        //   console.log('receipt:', receipt)
-        // if (!receipt) {
-        //   throw new Error('Error getting transaction receipt')
-        // }
-        // Get the encoded perks from the transaction receipt
-        if (!keys) {
-          throw new Error('Error getting encoded perks')
-        }
-        const encodedPerks = keys
-
-        return encodedPerks
-      } catch (error) {
-        console.log('Error getting perks, skipping:', error)
-      }
-      return perks
-    }
-
-    return await getAllPerks(assetAddress)
-  }
-
   // -- End of Helper functions for interfaces -- //
 
   // -- Start of Blockchain Sync -- //

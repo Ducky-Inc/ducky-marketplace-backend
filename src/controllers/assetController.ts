@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import AssetService from '../services/AssetService/utils/AssetTableUtil'
 
 // Get indexed assets
+// @ Public - get: /api/asset
 export const getAssets = async (req: Request, res: Response) => {
   try {
     // extract the query params

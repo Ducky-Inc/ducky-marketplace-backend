@@ -6,6 +6,7 @@ export interface IPerk {
   id?: number
   perkName: string
   assetAddress: string
+  mainContractAddress: string
   perkMetadataURI: string
   perkKeys: string[]
   perkPropertyIDData: string[]
@@ -14,6 +15,7 @@ export interface IPerk {
 export class Perk extends Model {
   public id!: number
   public perkName!: string
+  public mainContractAddress!: string
   public assetAddress!: string
   public perkMetadataURI!: string
   public perkKeys!: string[]
@@ -39,6 +41,10 @@ Perk.init(
       type: DataTypes.STRING,
       allowNull: false,
     },
+    mainContractAddress: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
     perkMetadataURI: {
       type: DataTypes.STRING,
     },
@@ -55,7 +61,7 @@ Perk.init(
   },
 )
 Perk.belongsTo(Asset, {
-  foreignKey: 'address',
+  foreignKey: 'assetAddress',
   as: 'Perk',
 })
 
